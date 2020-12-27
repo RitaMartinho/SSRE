@@ -1,4 +1,19 @@
-
 \section{Solution}
 
-Here you should describe the solution.
+The final product of this projects accomplishes the 1st step through a 
+\textit{ping broadcast} command, identifying all available hosts present in the 
+network.
+It then positions itself using \textit{ARP spoofing}, communicating to both 
+users that the IP to which they intend to communicate with belongs to it's MAC 
+address. 
+Finally, it preforms 1 types of exploitation (active and passive), depending on
+the service being used.
+
+Given the nature of MITM attacks, an emphasis is given to the continuous 
+forwarding of packets between both victims, as to not alert the users that the 
+communication has been compromised.
+This usually requires a fast forwarding process to simulate a normal traffic 
+flow. 
+
+The proposed final system overcomes this difficulty using the Linux 
+IP forwarding mechanism 
