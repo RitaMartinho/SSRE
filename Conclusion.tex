@@ -1,2 +1,25 @@
+% !TeX root = ssre.tex
 \section{Conclusion}
-The conclusion goes here.
+\label{sec:Concl}
+
+Through this project we were able to have a 1st hand experience with the 
+procedures involved in a MITM attack, the security flaws present in the types
+of services that fall victim to them and their glaring consequences.
+
+In a general fashion, most of the compromised services analysed would have been 
+safe if their communications were implemented on top of 
+\underline{encrypted channels} - rendering the attackers interpretation of the 
+detected information useless.
+In fact, encryption also plays an extremely important role against the
+\textbf{Evesdropping} step mentioned in section \ref{sec:Intro}, since no 
+identifying content can be detected by the attacker if all traffic is encrypted.
+
+Prevention of the \textbf{Positioning} attacker's step can be done by not 
+accepting any unsolicited ARP responses or by some sort of cross-checking of 
+ARP responses involving the DHCP server such that both dynamic and static IP
+addresses are verified.
+
+In summary, this project showed us how important concepts like encryption 
+really are in a practical way.
+A special high note should be given to Scapy, not only for its ease of features 
+(and implementation), but also it's documentation and available resources.

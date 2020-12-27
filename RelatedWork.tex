@@ -1,3 +1,4 @@
+% !TeX root = ssre.tex
 \section{Related work}
 
 \subsubsection{Scapy}
@@ -60,7 +61,7 @@ be used as it's sequence number (Seq.A), and the server replies with an
 acknowledgment number (ACK) of Seq.A + 1 and a random value value of it's own, 
 sequence number (Seq.B).
 This values are then used to re-arrange out of order packets and ensure that 
-the correct packet is received during communication.
+correct packets are received during communication.
 
 An attacker can impersonate one of the involved parties by forging an IP packet 
 with the correct ongoing Seq. and ACK values. 
@@ -70,9 +71,9 @@ As such, the attacker is able to "hijack" the ongoing connection.
 
 This approach faces some problems: 
 \begin{itemize}
-    \item \underline{It requires a ongoing connection} - upon receiving a forged
-        SYN packet, the server will reply with a SYN ACK to the IP of said 
-        packet. 
+    \item \underline{It requires an ongoing connection} - upon receiving a 
+        forged SYN packet, the server will reply with a SYN ACK to the IP of 
+        said packet. 
         Since the real device of this IP did not start a connection, it will
         respond with a TCP packet whose RST bit is set, immediately closing the
         connection.
@@ -89,5 +90,21 @@ before the hijack, without the server realizing it.
 
 ~
 \subsubsection{RST attack}
+
 ~\newline
+Each TCP packet has a header, and each header contains a bit known as the 
+"reset" (RST) flag. 
+In usual TCP traffic, this bit is set to 0 and has no effect.
+However, if this bit is set to 1, it indicates to the receiving device that 
+it should immediately stop using the TCP connection; 
+it should not send any more packets using the connection's identifying numbers, 
+called ports, and discard any further packets it receives with headers 
+indicating they belong to this connection. 
+A TCP reset basically kills a TCP connection instantly. 
+
+As seen previously, it's possible to inject a forged TCP packet into a ongoing 
+TCP connection, if the forged Seq. and ACK number are correct. 
+As such, an attacker can prematurely terminate a TCP connection, without the 
+willing consent of the parties involved.
+
 
