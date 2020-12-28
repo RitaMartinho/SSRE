@@ -1,3 +1,4 @@
+% !TeX root = ssre.tex
 \section{Introduction}
 \label{sec:Intro}
 This paper will focus on the work developed for the main project of the 
@@ -11,7 +12,7 @@ analyzed protocols - victims - and 1 running scapy, simulating the potential
 attacker.
 
 The general flow of a MITM attack is as follows: \textbf{Sniffing/Evesdropping}
-- the attacker detects some kind of communication or vulnerable victims - 
+- the attacker detects some kind of vulnerable communication or victims - 
 \textbf{Positioning} - the attacker position itself between both victims -
 \textbf{Exploitation} - the attacker stores or even alters the collected 
 information for nefarious actions.
@@ -20,19 +21,19 @@ information for nefarious actions.
 
 \subsubsection{FTP}
 
-FTP stands for File Tranfer Protocol and it is a standard network protocol used in computer file transfer between 2 nodes in a network, using a hierarchical architecture in a client-server model fashion (the server being the node storing the files and the client the node requesting it). 
+FTP stands for File Tranfer Protocol and is a standard network protocol used in computer file transfer between 2 nodes in a network, using a hierarchical architecture in a client-server model fashion (the server being the node storing the files and the client the node requesting it). 
 Clients can authenticate themselves in an \textit{anonymous} way - if the server is prepared for that - or using a username and password that is sent in \textbf{clear text}. 
 With that in mind and knowing that FTP server uses well-known reply codes, (such as \textit{ 230 - User logged in, proceed.} ) an attacker can easily store and use valid credentials to access the server, impersonating a valid client.  
 
 \subsubsection{SNMP}
 
-SNMP stands for Simple Network Management Protocol and it is used for collecting, organizing and changing information about managed devices on Layer 3 networks
-. SNMP defines structured management data using a Management Information Base (MIB). 
+SNMP stands for Simple Network Management Protocol and it is used for collecting, organizing and changing information about managed devices on Layer 3 networks. 
+SNMP defines structured management data using a Management Information Base (MIB). 
 This database is hierarchical (tree-structured) and each entry is addressed through an object identifier (OID). 
 SNMP follows a client-server model in which the servers (\textit{managers}) collect and process information about devices on a network. 
 The clients (\textit{agents}) are any type of device in a network that can be monitored, such as computers, switches, routers, printers, etc. 
 There are 3 main SNMP commands: - \textit{set}: the manager sets some value to an OID value available on the agent; \textit{get}: the manager queries the agent about some OID value and \textit{trap}: the agent sends unsolicited information about some OID value to the manager. 
-These commands require the use of a \textit{community string}, representing a somewhat password. 
+These commands require the use of a \textit{community string}, representing somewhat off a password. 
 In version 1 and 2 of the protocol this community string is sent in \textbf{clear text} and so, any attacker, sniffing a SNMP communication can \textit{set} or \textit{get} any OID value using the retrieved community string. 
 SNMPv3 corrects this lack of security. 
 
@@ -49,8 +50,8 @@ In fact, Telnet is becoming deprecated in favor of the SSH protocol.
 
 SMTP stands for Simple Mail Transfer Protocol and it is used for sending and receiving e-mail. 
 SMTP also follows a client-server model, with the server being the application that its primary purpose is to send, receive, and/or relay outgoing mail between email senders and receivers. 
-In other works, a client email sender, writes the email body and subject and specifies the receiver. 
-This information is sent to the SMTP server which is responsible to relay this email to the appropriate receiver, if possible. 
+In other works, a client email sender, writes the emails body, subject and specifies the receiver. 
+This information is sent to the SMTP server which is responsible for relaying this email to the appropriate receiver, if possible. 
 This information is sent using \textbf{clear text} and any attacker in the middle of the client-server communication can access the contents of the email, compromising a mostly desired privacy. 
-Similarly to FTP, SMTP server also uses reply codes, which increases the facility of the attacker to know which type of data is being sent.
+Similarly to FTP, SMTP server also uses reply codes, which increases the ease of the attacker to know which type of data is being sent.
 

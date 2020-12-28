@@ -1,14 +1,24 @@
 % biber
 \documentclass[conference]{IEEEtran}
 
+
 \usepackage[pdftex]{graphicx}
-\usepackage{biblatex}
 \graphicspath{{../pdf/}{../jpeg/}}
 
 \usepackage{amsmath}
 \usepackage{url}
+\usepackage{placeins}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{references.bib}
+
 % correct bad hyphenation here
 \hyphenation{op-tical net-works semi-conduc-tor}
+\makeatletter
+\patchcmd{\@verbatim}
+  {\verbatim@font}
+  {\verbatim@font\small}
+  {}{}
+\makeatother
 
 \begin{document}
 \title{Using Scapy for \\ Man-in-the-Middle Attacks}
@@ -42,24 +52,16 @@
     
     4 different protocols were analyzed (FTP, SNMP, Telnet and SMTP).
 
-
 \end{abstract}
 
 \input{Introduction}
-\input{RelatedWork}
+\input{ToolsConcepts}
 \input{Solution}
-\input{Evaluation}
+\input{Results}
 \input{Conclusion}
 
-\begin{thebibliography}{1}
-
-\bibitem{IEEEhowto:kopka}
-H.~Kopka and P.~W. Daly, \emph{A Guide to \LaTeX}, 3rd~ed.\hskip 1em plus
-  0.5em minus 0.4em\relax Harlow, England: Addison-Wesley, 1999.
-
-\end{thebibliography}
+\nocite{*}
+\printbibliography
 
 % that's all folks
 \end{document}
-
-
