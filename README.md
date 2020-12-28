@@ -6,4 +6,6 @@ Rep for Security for Systems and Networks, 5th year, FEUP
 
 Attacker must have scapy (and python) installed: https://scapy.net/ (you can simply type: *sudo apt-get install scapy*)
 
+Just run: python3 mitm.py
+
 
