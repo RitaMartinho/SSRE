@@ -22,7 +22,7 @@ The demonstration of the FTP passive attack was accomplished by creating a user 
 
 For the demonstration of both SNMP active and passive attack, the below described environment was created: 
 \\\\
-As shown in figure \ref{fig:SNMPPassiveAttack}, a remote user is querying the machine at \textit{192.168.109.147} about its System Up Time, using a \textit{snmpget} command. The attacker (left in the figure) is prompted with real-time data about the response to that command, including the community string \textit{veryprivate}. To perform the active attack, the user must type \textit{Ctrl-C} and enter, as described in section \ref{Solution}, the necessary information. As depicted in figure \ref{fig:SNMPActiveAttack}, the victim of this attack in this created environment is running Debian with kernel version 4.19, it's a 64bit OS and the hostname is "gelo43". Those types of information can be useful for any other type of attacks. 
+As shown in figure \ref{fig:SNMPPassiveAttack}, a remote user is querying the machine at \textit{192.168.109.147} about its System Up Time, using a \textit{snmpget} command. The attacker (left in the figure) is prompted with real-time data about the response to that command, including the community string \textit{veryprivate}. To perform the active attack, the user must type \textit{Ctrl-C} and enter, as described in section \ref{sec:Solution}, the necessary information. As depicted in figure \ref{fig:SNMPActiveAttack}, the victim of this attack in this created environment is running Debian with kernel version 4.19, it's a 64bit OS and the hostname is "gelo43". Those types of information can be useful for any other type of attacks. 
 
 \begin{figure}[h!]
     \centering
@@ -69,3 +69,6 @@ For the demonstration of the SMTP passive attack, one of the victims is \textit{
     \label{fig:SMTPPassiveAttack}
 \end{figure}
 \FloatBarrier
+
+Finally, the entire of the developed project can be found on our own personal
+repositories at \url{https://github.com/RitaMartinho/SSRE}.
